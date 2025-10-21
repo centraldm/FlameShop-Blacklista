@@ -2,21 +2,23 @@ const express = require('express');
 const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder, Partials } = require('discord.js');
 require('dotenv').config();
 
-// Tworzymy prosty serwer webowy dla Rendera
+// ───── Serwer Express dla Render.com ─────
 const app = express();
 app.get('/', (req, res) => res.send('Bot działa ✅'));
 app.listen(process.env.PORT || 3000, () => console.log('🌐 Serwer Express aktywny'));
 
-// Konfiguracja klienta Discord
+// ───── Konfiguracja klienta Discord ─────
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
   partials: [Partials.Channel],
 });
 
+// ───── Logowanie bota ─────
 client.once('ready', () => {
   console.log(`✅ Zalogowano jako ${client.user.tag}`);
 });
 
+// ───── Rejestracja komendy slash ─────
 client.on('ready', async () => {
   const data = new SlashCommandBuilder()
     .setName('blacklista')
@@ -33,6 +35,7 @@ client.on('ready', async () => {
   await client.application.commands.set([data]);
 });
 
+// ───── Obsługa komendy slash ─────
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName !== 'blacklista') return;
@@ -46,9 +49,6 @@ client.on('interactionCreate', async (interaction) => {
   const target = interaction.options.getUser('uzytkownik');
   const reason = interaction.options.getString('powod');
 
-  await interaction.deferReply({ ephemeral: true });
-  await interaction.deleteReply();
-
   const embed = new EmbedBuilder()
     .setTitle('🏴 𝐅𝐋𝐀𝐌𝐄 𝐒𝐇✠𝐏 × BLACKLISTA')
     .setColor('Orange')
@@ -61,7 +61,19 @@ client.on('interactionCreate', async (interaction) => {
     )
     .setTimestamp();
 
-  await interaction.channel.send({ embeds: [embed] });
+  try {
+    // 🔹 Deferujemy odpowiedź, ale nie pokazujemy ephemeral
+    await interaction.deferReply({ ephemeral: false });
+
+    // 🔹 Usuwamy automatyczną odpowiedź slash command
+    await interaction.deleteReply();
+
+    // 🔹 Wysyłamy embed do kanału, wygląda jak „zamiana” komendy na embed
+    await interaction.channel.send({ embeds: [embed] });
+  } catch (error) {
+    console.error('Błąd przy wysyłaniu embed:', error);
+  }
 });
 
+// ───── Logowanie bota na token z .env ─────
 client.login(process.env.TOKEN);
