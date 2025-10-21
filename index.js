@@ -1,6 +1,13 @@
+const express = require('express');
 const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder, Partials } = require('discord.js');
-require('dotenv').config(); // ← wczytuje zmienne z pliku .env (lokalnie)
+require('dotenv').config();
 
+// Tworzymy prosty serwer webowy dla Rendera
+const app = express();
+app.get('/', (req, res) => res.send('Bot działa ✅'));
+app.listen(process.env.PORT || 3000, () => console.log('🌐 Serwer Express aktywny'));
+
+// Konfiguracja klienta Discord
 const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
   partials: [Partials.Channel],
@@ -10,7 +17,6 @@ client.once('ready', () => {
   console.log(`✅ Zalogowano jako ${client.user.tag}`);
 });
 
-// Rejestracja komendy /blacklista
 client.on('ready', async () => {
   const data = new SlashCommandBuilder()
     .setName('blacklista')
@@ -27,7 +33,6 @@ client.on('ready', async () => {
   await client.application.commands.set([data]);
 });
 
-// Obsługa komendy
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName !== 'blacklista') return;
