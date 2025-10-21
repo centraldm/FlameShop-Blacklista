@@ -9,17 +9,19 @@ app.listen(process.env.PORT || 3000, () => console.log('🌐 Serwer Express akty
 
 // ───── Konfiguracja klienta Discord ─────
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.GuildMembers // potrzebne do sprawdzania ról
+  ],
   partials: [Partials.Channel],
 });
 
 // ───── Logowanie bota ─────
-client.once('ready', () => {
+client.once('ready', async () => {
   console.log(`✅ Zalogowano jako ${client.user.tag}`);
-});
 
-// ───── Rejestracja komendy slash ─────
-client.on('ready', async () => {
+  // ───── Rejestracja komendy guild (działa natychmiast) ─────
   const data = new SlashCommandBuilder()
     .setName('blacklista')
     .setDescription('Dodaje użytkownika do blacklisty (dostęp tylko dla ownera)')
@@ -32,12 +34,21 @@ client.on('ready', async () => {
         .setDescription('Powód dodania do blacklisty')
         .setRequired(true));
 
-  await client.application.commands.set([data]);
+  const guildId = process.env.GUILD_ID; // ID Twojego serwera z .env
+  try {
+    await client.application.commands.set([data], guildId);
+    console.log('✅ Komenda /blacklista zarejestrowana w guild');
+  } catch (err) {
+    console.error('❌ Błąd przy rejestracji komendy:', err);
+  }
 });
 
 // ───── Obsługa komendy slash ─────
 client.on('interactionCreate', async (interaction) => {
+  console.log('🔥 Interaction received'); // debug
   if (!interaction.isChatInputCommand()) return;
+  console.log('✅ Slash command received:', interaction.commandName);
+
   if (interaction.commandName !== 'blacklista') return;
 
   const ownerRoleId = process.env.OWNER_ROLE_ID; // ID roli ownera z .env
@@ -45,11 +56,15 @@ client.on('interactionCreate', async (interaction) => {
 
   // Sprawdzenie uprawnień po ID roli
   if (!member.roles.cache.has(ownerRoleId)) {
-    return interaction.reply({ content: '⛔ Nie masz uprawnień do użycia tej komendy.', ephemeral: true });
+    return interaction.reply({ content: '⛔ Nie masz uprawnień do użycia tej komendy.', flags: 64 }); // ephemeral
   }
 
-  const target = interaction.options.getUser('użytkownik');
-  const reason = interaction.options.getString('powód');
+  const target = interaction.options.getUser('uzytkownik');
+  const reason = interaction.options.getString('powod');
+
+  if (!target) {
+    return interaction.reply({ content: '❌ Nie znaleziono użytkownika.', flags: 64 });
+  }
 
   const embed = new EmbedBuilder()
     .setTitle('🏴 𝐅𝐋𝐀𝐌𝐄 𝐒𝐇✠𝐏 × BLACKLISTA')
@@ -64,7 +79,7 @@ client.on('interactionCreate', async (interaction) => {
     .setTimestamp();
 
   try {
-    // 🔹 Deferujemy odpowiedź (nie ephemeral)
+    // 🔹 Deferujemy odpowiedź (ale nie ephemeral)
     await interaction.deferReply({ ephemeral: false });
 
     // 🔹 Usuwamy automatyczną odpowiedź slash command
@@ -73,7 +88,7 @@ client.on('interactionCreate', async (interaction) => {
     // 🔹 Wysyłamy embed do kanału
     await interaction.channel.send({ embeds: [embed] });
   } catch (error) {
-    console.error('Błąd przy wysyłaniu embed:', error);
+    console.error('❌ Błąd przy wysyłaniu embed:', error);
   }
 });
 
