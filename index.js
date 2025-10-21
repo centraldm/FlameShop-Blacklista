@@ -40,14 +40,16 @@ client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
   if (interaction.commandName !== 'blacklista') return;
 
+  const ownerRoleId = process.env.OWNER_ROLE_ID; // ID roli ownera z .env
   const member = interaction.member;
-  const ownerRole = member.roles.cache.find(r => r.name.toLowerCase() === 'owner');
-  if (!ownerRole) {
+
+  // Sprawdzenie uprawnień po ID roli
+  if (!member.roles.cache.has(ownerRoleId)) {
     return interaction.reply({ content: '⛔ Nie masz uprawnień do użycia tej komendy.', ephemeral: true });
   }
 
-  const target = interaction.options.getUser('uzytkownik');
-  const reason = interaction.options.getString('powod');
+  const target = interaction.options.getUser('użytkownik');
+  const reason = interaction.options.getString('powód');
 
   const embed = new EmbedBuilder()
     .setTitle('🏴 𝐅𝐋𝐀𝐌𝐄 𝐒𝐇✠𝐏 × BLACKLISTA')
@@ -62,13 +64,13 @@ client.on('interactionCreate', async (interaction) => {
     .setTimestamp();
 
   try {
-    // 🔹 Deferujemy odpowiedź, ale nie pokazujemy ephemeral
+    // 🔹 Deferujemy odpowiedź (nie ephemeral)
     await interaction.deferReply({ ephemeral: false });
 
     // 🔹 Usuwamy automatyczną odpowiedź slash command
     await interaction.deleteReply();
 
-    // 🔹 Wysyłamy embed do kanału, wygląda jak „zamiana” komendy na embed
+    // 🔹 Wysyłamy embed do kanału
     await interaction.channel.send({ embeds: [embed] });
   } catch (error) {
     console.error('Błąd przy wysyłaniu embed:', error);
