@@ -12,7 +12,7 @@ const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMembers // potrzebne do sprawdzania ról
+    GatewayIntentBits.GuildMembers
   ],
   partials: [Partials.Channel],
 });
@@ -21,7 +21,7 @@ const client = new Client({
 client.once('ready', async () => {
   console.log(`✅ Zalogowano jako ${client.user.tag}`);
 
-  // ───── Rejestracja komendy guild (działa natychmiast) ─────
+  // ───── Rejestracja komendy /blacklista ─────
   const data = new SlashCommandBuilder()
     .setName('blacklista')
     .setDescription('Dodaje użytkownika do blacklisty (dostęp tylko dla ownera)')
@@ -34,7 +34,7 @@ client.once('ready', async () => {
         .setDescription('Powód dodania do blacklisty')
         .setRequired(true));
 
-  const guildId = process.env.GUILD_ID; // ID Twojego serwera z .env
+  const guildId = process.env.GUILD_ID;
   try {
     await client.application.commands.set([data], guildId);
     console.log('✅ Komenda /blacklista zarejestrowana w guild');
@@ -43,20 +43,17 @@ client.once('ready', async () => {
   }
 });
 
-// ───── Obsługa komendy slash ─────
+// ───── Obsługa komendy /blacklista ─────
 client.on('interactionCreate', async (interaction) => {
-  console.log('🔥 Interaction received'); // debug
   if (!interaction.isChatInputCommand()) return;
-  console.log('✅ Slash command received:', interaction.commandName);
-
   if (interaction.commandName !== 'blacklista') return;
 
-  const ownerRoleId = process.env.OWNER_ROLE_ID; // ID roli ownera z .env
+  const ownerRoleId = process.env.OWNER_ROLE_ID;
   const member = interaction.member;
 
-  // Sprawdzenie uprawnień po ID roli
+  // Sprawdzenie roli ownera
   if (!member.roles.cache.has(ownerRoleId)) {
-    return interaction.reply({ content: '⛔ Nie masz uprawnień do użycia tej komendy.', flags: 64 }); // ephemeral
+    return interaction.reply({ content: '⛔ Nie masz uprawnień do użycia tej komendy.', flags: 64 });
   }
 
   const target = interaction.options.getUser('uzytkownik');
@@ -66,6 +63,7 @@ client.on('interactionCreate', async (interaction) => {
     return interaction.reply({ content: '❌ Nie znaleziono użytkownika.', flags: 64 });
   }
 
+  // Embed
   const embed = new EmbedBuilder()
     .setTitle('🏴 𝐅𝐋𝐀𝐌𝐄 𝐒𝐇✠𝐏 × BLACKLISTA')
     .setColor('Orange')
@@ -79,18 +77,33 @@ client.on('interactionCreate', async (interaction) => {
     .setTimestamp();
 
   try {
-    // 🔹 Deferujemy odpowiedź (ale nie ephemeral)
+    // Defer — żeby uniknąć timeoutu Discorda
     await interaction.deferReply({ ephemeral: false });
 
-    // 🔹 Usuwamy automatyczną odpowiedź slash command
-    await interaction.deleteReply();
+    // Bezpieczne usunięcie wiadomości z / (bez crasha)
+    try {
+      await interaction.deleteReply();
+    } catch (err) {
+      console.warn('⚠️ Nie udało się usunąć wiadomości slash:', err.message);
+    }
 
-    // 🔹 Wysyłamy embed do kanału
+    // Wysłanie embedu publicznie
     await interaction.channel.send({ embeds: [embed] });
+
   } catch (error) {
     console.error('❌ Błąd przy wysyłaniu embed:', error);
   }
 });
 
-// ───── Logowanie bota na token z .env ─────
+// ───── Logowanie bota ─────
 client.login(process.env.TOKEN);
+// ───── Keep-alive ping (Render fix) ─────
+setInterval(() => {
+  const http = require('http');
+  const url = `http://localhost:${process.env.PORT || 3000}`;
+  http.get(url, res => {
+    console.log(`🔁 Keep-alive ping: ${res.statusCode}`);
+  }).on('error', err => {
+    console.warn('⚠️ Keep-alive ping error:', err.message);
+  });
+}, 4 * 60 * 1000); // co 4 minuty
